@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { initialTimeline, orgMeta } from "../data/mockData";
+import { orgMeta } from "../data/mockData";
 
 const orgStyle = {
-  energy: { dot: "bg-amber-500", pill: "bg-amber-100 text-amber-800" },
-  telecom: { dot: "bg-teal-600", pill: "bg-teal-100 text-teal-800" },
+  energy: { dot: "bg-blue-600", pill: "bg-blue-100 text-blue-800" },
+  telecom: { dot: "bg-red-600", pill: "bg-red-100 text-red-800" },
   joint: { dot: "bg-slate-500", pill: "bg-slate-100 text-slate-700" },
 };
 
@@ -12,8 +12,7 @@ function formatTime(iso) {
   return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function Timeline() {
-  const [events, setEvents] = useState(initialTimeline);
+export default function Timeline({ events, onPost }) {
   const [draft, setDraft] = useState("");
   const [author, setAuthor] = useState("");
   const [org, setOrg] = useState("energy");
@@ -27,7 +26,7 @@ export default function Timeline() {
       author: author.trim() || "Control Room Operator",
       text: draft.trim(),
     };
-    setEvents((prev) => [...prev, entry]);
+    onPost(entry);
     setDraft("");
   }
 
@@ -71,7 +70,7 @@ export default function Timeline() {
             <button
               onClick={() => setOrg("energy")}
               className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border ${
-                org === "energy" ? "bg-amber-500 text-white border-amber-500" : "border-slate-200 text-slate-600"
+                org === "energy" ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-600"
               }`}
             >
               Energy DNO
@@ -79,7 +78,7 @@ export default function Timeline() {
             <button
               onClick={() => setOrg("telecom")}
               className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border ${
-                org === "telecom" ? "bg-teal-600 text-white border-teal-600" : "border-slate-200 text-slate-600"
+                org === "telecom" ? "bg-red-600 text-white border-red-600" : "border-slate-200 text-slate-600"
               }`}
             >
               Telecom MNO

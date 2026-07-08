@@ -26,7 +26,7 @@ function BackupBar({ hours }) {
   );
 }
 
-export default function RestartPanel() {
+export default function RestartPanel({ onPlanRoute }) {
   const interventionCount = mastSites.filter((m) => m.intervention).length;
 
   return (
@@ -70,6 +70,7 @@ export default function RestartPanel() {
                 <th className="px-4 py-2.5 font-medium">Auto-restart</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="px-4 py-2.5 font-medium">Notes</th>
+                <th className="px-4 py-2.5 font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -108,6 +109,16 @@ export default function RestartPanel() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-left text-xs text-slate-600 max-w-xs">{m.notes}</td>
+                    <td className="px-4 py-3 text-left">
+                      {onPlanRoute && (
+                        <button
+                          onClick={() => onPlanRoute(m.id)}
+                          className="text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 whitespace-nowrap hover:bg-slate-100"
+                        >
+                          Plan route →
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { initialWelfareTasks } from "../data/mockData";
+import { initialWelfareTasks, resolveDestinationId } from "../data/mockData";
 
 const COLUMNS = [
   { id: "reported", label: "Reported" },
@@ -28,14 +28,15 @@ function orgOf(assignedTo) {
 }
 
 const orgDot = {
-  energy: "bg-amber-500",
-  telecom: "bg-teal-600",
+  energy: "bg-blue-600",
+  telecom: "bg-red-600",
   none: "bg-slate-300",
 };
 
-function TaskCard({ task, onMove, onAssign }) {
+function TaskCard({ task, onMove, onAssign, onPlanRoute }) {
   const idx = COLUMNS.findIndex((c) => c.id === task.status);
   const org = orgOf(task.assignedTo);
+  const destinationId = resolveDestinationId(task.location);
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-3 space-y-2 text-left">
@@ -63,6 +64,15 @@ function TaskCard({ task, onMove, onAssign }) {
         </select>
       </div>
 
+      {destinationId && task.status !== "resolved" && (
+        <button
+          onClick={() => onPlanRoute(destinationId)}
+          className="w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-md py-1.5 hover:bg-slate-100"
+        >
+          Plan safest route →
+        </button>
+      )}
+
       <div className="flex items-center justify-between pt-1">
         <button
           onClick={() => onMove(task.id, COLUMNS[idx - 1]?.id)}
@@ -83,7 +93,7 @@ function TaskCard({ task, onMove, onAssign }) {
   );
 }
 
-export default function WelfareBoard() {
+export default function WelfareBoard({ onPlanRoute }) {
   const [tasks, setTasks] = useState(initialWelfareTasks);
 
   function moveTask(id, newStatus) {
@@ -117,7 +127,7 @@ export default function WelfareBoard() {
               </div>
               <div className="space-y-3 min-h-[80px]">
                 {colTasks.map((t) => (
-                  <TaskCard key={t.id} task={t} onMove={moveTask} onAssign={assignTask} />
+                  <TaskCard key={t.id} task={t} onMove={moveTask} onAssign={assignTask} onPlanRoute={onPlanRoute} />
                 ))}
                 {colTasks.length === 0 && (
                   <p className="text-xs text-slate-400 text-center py-6">No tasks</p>

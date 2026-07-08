@@ -4,7 +4,7 @@
 
 export const incident = {
   name: "Wickham Cross & Blythe Fen Combined Outage",
-  region: "Rural Suffolk",
+  region: "Rural Suffolk, UK",
   declaredAt: "2026-07-08T06:42:00",
   status: "Active — Joint Response",
 };
@@ -202,7 +202,199 @@ export const initialWelfareTasks = [
 ];
 
 export const orgMeta = {
-  energy: { label: "Energy DNO", color: "amber" },
-  telecom: { label: "Telecom MNO", color: "teal" },
+  energy: { label: "Energy DNO", color: "blue" },
+  telecom: { label: "Telecom MNO", color: "red" },
   joint: { label: "Joint / System", color: "slate" },
 };
+
+// Joint response vehicle depot — starting point for all field dispatch routes.
+export const depot = {
+  id: "depot",
+  name: "Wickham Cross Joint Response Depot",
+  x: 70,
+  y: 470,
+};
+
+// Known road hazards affecting route safety in the affected area.
+export const hazards = [
+  {
+    id: "h1",
+    type: "flood",
+    label: "Flooded ford — Fen Causeway (River Blythe)",
+    x: 250,
+    y: 410,
+  },
+  {
+    id: "h2",
+    type: "power-line",
+    label: "Downed line — Church Road, Blythe Fen",
+    x: 300,
+    y: 265,
+  },
+  {
+    id: "h3",
+    type: "road-closure",
+    label: "Fallen tree — Ashcombe Lane partially blocked",
+    x: 430,
+    y: 245,
+  },
+];
+
+// Dispatch destinations for the route planner — mast sites plus one welfare-only
+// location (Cold Marsh Green has no mast but has an active welfare task).
+export const dispatchDestinations = [
+  { id: "WCX-014", label: "Wickham Cross mast (WCX-014)", x: 150, y: 95, kind: "mast" },
+  { id: "BLF-002", label: "Blythe Fen Church Rd mast (BLF-002)", x: 340, y: 250, kind: "mast" },
+  { id: "ASP-031", label: "Ashcombe Parva Water Tower (ASP-031)", x: 450, y: 210, kind: "mast" },
+  { id: "NTS-019", label: "Netherstow Exchange (NTS-019)", x: 570, y: 290, kind: "mast" },
+  { id: "cold-marsh-green", label: "Cold Marsh Green (welfare visit)", x: 260, y: 380, kind: "settlement" },
+];
+
+// Maps a welfare task's free-text location to the nearest route-planner destination.
+export function resolveDestinationId(location) {
+  const known = [
+    ["Blythe Fen", "BLF-002"],
+    ["Wickham Cross", "WCX-014"],
+    ["Ashcombe Parva", "ASP-031"],
+    ["Netherstow", "NTS-019"],
+    ["Cold Marsh Green", "cold-marsh-green"],
+  ];
+  const match = known.find(([name]) => location.includes(name));
+  return match ? match[1] : null;
+}
+
+// Candidate routes from the depot to each destination. Distances in miles,
+// energy in kWh (electric fleet vehicles), safetyScore 1-10 (10 = safest).
+// The Route Planner scores these live rather than trusting a fixed "best" flag.
+export const routeOptions = {
+  "WCX-014": [
+    {
+      id: "wcx-r1",
+      label: "Direct via Fen Causeway",
+      path: "70,470 160,420 210,300 170,180 150,95",
+      distanceMiles: 5.6,
+      etaMinutes: 15,
+      energyKwh: 2.3,
+      safetyScore: 5,
+      hazardsOnRoute: ["h1"],
+      notes: "Shortest route but crosses the flooded ford at Fen Causeway.",
+    },
+    {
+      id: "wcx-r2",
+      label: "Via Wickham Road (north)",
+      path: "70,470 90,340 100,220 130,140 150,95",
+      distanceMiles: 6.1,
+      etaMinutes: 17,
+      energyKwh: 2.4,
+      safetyScore: 9,
+      hazardsOnRoute: [],
+      notes: "Slightly longer, stays clear of all known hazards.",
+    },
+  ],
+  "BLF-002": [
+    {
+      id: "blf-r1",
+      label: "Direct via Church Road",
+      path: "70,470 180,430 260,360 300,265 340,250",
+      distanceMiles: 4.4,
+      etaMinutes: 12,
+      energyKwh: 1.8,
+      safetyScore: 4,
+      hazardsOnRoute: ["h2"],
+      notes: "Fastest route but passes the downed power line on Church Road.",
+    },
+    {
+      id: "blf-r2",
+      label: "Via Cold Marsh Green bypass",
+      path: "70,470 180,440 260,395 330,330 360,280 340,250",
+      distanceMiles: 5.2,
+      etaMinutes: 14,
+      energyKwh: 2.0,
+      safetyScore: 9,
+      hazardsOnRoute: [],
+      notes: "Avoids the downed line, minor detour south of Blythe Fen.",
+    },
+  ],
+  "ASP-031": [
+    {
+      id: "asp-r1",
+      label: "Direct via Ashcombe Lane",
+      path: "70,470 220,420 340,330 400,270 450,210",
+      distanceMiles: 6.0,
+      etaMinutes: 16,
+      energyKwh: 2.4,
+      safetyScore: 5,
+      hazardsOnRoute: ["h3"],
+      notes: "Ashcombe Lane has a fallen tree partially blocking the carriageway.",
+    },
+    {
+      id: "asp-r2",
+      label: "Via Blythe Fen & B-road",
+      path: "70,470 180,440 300,340 380,260 430,220 450,210",
+      distanceMiles: 6.6,
+      etaMinutes: 18,
+      energyKwh: 2.6,
+      safetyScore: 8,
+      hazardsOnRoute: [],
+      notes: "Longer but clear road, avoids the Ashcombe Lane obstruction.",
+    },
+  ],
+  "NTS-019": [
+    {
+      id: "nts-r1",
+      label: "Direct via B-road east",
+      path: "70,470 220,430 380,360 480,320 570,290",
+      distanceMiles: 7.8,
+      etaMinutes: 19,
+      energyKwh: 3.0,
+      safetyScore: 8,
+      hazardsOnRoute: [],
+      notes: "Clear B-road route, no known hazards, good surface for EV range.",
+    },
+    {
+      id: "nts-r2",
+      label: "Via Ashcombe Parva (shortcut)",
+      path: "70,470 220,420 340,330 430,260 500,270 570,290",
+      distanceMiles: 7.2,
+      etaMinutes: 18,
+      energyKwh: 2.9,
+      safetyScore: 5,
+      hazardsOnRoute: ["h3"],
+      notes: "Slightly shorter but crosses the Ashcombe Lane obstruction.",
+    },
+  ],
+  "cold-marsh-green": [
+    {
+      id: "cmg-r1",
+      label: "Direct via depot lane",
+      path: "70,470 150,440 200,410 260,380",
+      distanceMiles: 2.1,
+      etaMinutes: 6,
+      energyKwh: 0.9,
+      safetyScore: 9,
+      hazardsOnRoute: [],
+      notes: "Short, clear local route.",
+    },
+    {
+      id: "cmg-r2",
+      label: "Via Fen Causeway",
+      path: "70,470 160,430 250,410 260,380",
+      distanceMiles: 2.4,
+      etaMinutes: 7,
+      energyKwh: 1.0,
+      safetyScore: 6,
+      hazardsOnRoute: ["h1"],
+      notes: "Marginally longer and crosses the flooded ford — unnecessary detour here.",
+    },
+  ],
+};
+
+// Scores a candidate route — higher is better. Safety is weighted most heavily
+// (each hazard on the route is penalised), then energy use, then journey time.
+export function scoreRoute(route) {
+  const hazardPenalty = route.hazardsOnRoute.length * 2.5;
+  const safety = route.safetyScore - hazardPenalty;
+  const energyPenalty = route.energyKwh * 1.2;
+  const timePenalty = (route.etaMinutes / 10) * 0.5;
+  return safety * 2 - energyPenalty - timePenalty;
+}

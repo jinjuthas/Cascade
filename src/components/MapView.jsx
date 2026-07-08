@@ -14,7 +14,7 @@ const statusStyle = {
   "manual-required": "bg-rose-100 text-rose-800 ring-rose-300",
 };
 
-export default function MapView() {
+export default function MapView({ onPlanRoute }) {
   const [showVulnerability, setShowVulnerability] = useState(false);
   const [selected, setSelected] = useState(null);
 
@@ -26,7 +26,7 @@ export default function MapView() {
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200">
           <div>
             <h2 className="text-base font-semibold text-slate-900">Outage Overlay Map</h2>
-            <p className="text-xs text-slate-500">Wickham Cross &amp; Blythe Fen area, rural Suffolk</p>
+            <p className="text-xs text-slate-500">Wickham Cross &amp; Blythe Fen area, rural Suffolk, UK</p>
           </div>
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 select-none cursor-pointer bg-slate-50 border border-slate-200 rounded-full pl-3 pr-1 py-1">
             Vulnerability layer
@@ -36,7 +36,7 @@ export default function MapView() {
               aria-checked={showVulnerability}
               onClick={() => setShowVulnerability((v) => !v)}
               className={`relative h-6 w-11 rounded-full transition-colors ${
-                showVulnerability ? "bg-purple-600" : "bg-slate-300"
+                showVulnerability ? "bg-amber-600" : "bg-slate-300"
               }`}
             >
               <span
@@ -67,26 +67,26 @@ export default function MapView() {
 
             <polygon
               points={powerOutageZone.points}
-              fill="#f59e0b"
-              fillOpacity="0.28"
-              stroke="#d97706"
+              fill="#2563eb"
+              fillOpacity="0.25"
+              stroke="#1d4ed8"
               strokeWidth="2"
               strokeDasharray="6 4"
             />
             <polygon
               points={mobileOutageZone.points}
-              fill="#0d9488"
-              fillOpacity="0.28"
-              stroke="#0f766e"
+              fill="#dc2626"
+              fillOpacity="0.25"
+              stroke="#b91c1c"
               strokeWidth="2"
               strokeDasharray="6 4"
             />
             <polygon
               points={mobileOutageZone.points}
               clipPath="url(#clip-power-zone)"
-              fill="#be123c"
+              fill="#7e22ce"
               fillOpacity="0.55"
-              stroke="#9f1239"
+              stroke="#6b21a8"
               strokeWidth="2"
             />
 
@@ -95,9 +95,9 @@ export default function MapView() {
                 const r = 14 + Math.sqrt(z.psrCount) * 4;
                 return (
                   <g key={z.id}>
-                    <circle cx={z.x} cy={z.y} r={r} fill="#7c3aed" fillOpacity="0.25" stroke="#7c3aed" strokeWidth="1.5" />
-                    <circle cx={z.x} cy={z.y} r="3" fill="#5b21b6" />
-                    <text x={z.x} y={z.y - r - 6} textAnchor="middle" fontSize="12" fontWeight="600" fill="#5b21b6">
+                    <circle cx={z.x} cy={z.y} r={r} fill="#d97706" fillOpacity="0.25" stroke="#d97706" strokeWidth="1.5" />
+                    <circle cx={z.x} cy={z.y} r="3" fill="#92400e" />
+                    <text x={z.x} y={z.y - r - 6} textAnchor="middle" fontSize="12" fontWeight="600" fill="#92400e">
                       {z.psrCount} PSR
                     </text>
                   </g>
@@ -143,17 +143,17 @@ export default function MapView() {
 
           <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur rounded-lg border border-slate-200 shadow-sm px-3 py-2 text-xs space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-amber-500/40 border border-amber-600" /> Power outage zone
+              <span className="h-3 w-3 rounded-sm bg-blue-600/40 border border-blue-700" /> Power outage zone
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-teal-600/40 border border-teal-700" /> Mobile outage zone
+              <span className="h-3 w-3 rounded-sm bg-red-600/40 border border-red-700" /> Mobile outage zone
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-rose-700/60 border border-rose-800" /> Dual outage (overlap)
+              <span className="h-3 w-3 rounded-sm bg-purple-700/60 border border-purple-800" /> Dual outage (overlap)
             </div>
             {showVulnerability && (
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-purple-600/30 border border-purple-700" /> PSR-flagged density
+                <span className="h-3 w-3 rounded-full bg-amber-600/30 border border-amber-700" /> PSR-flagged density
               </div>
             )}
           </div>
@@ -183,6 +183,14 @@ export default function MapView() {
                   </p>
                 </div>
               </div>
+              {onPlanRoute && (
+                <button
+                  onClick={() => onPlanRoute(selectedMast.id)}
+                  className="w-full mt-1 bg-slate-900 text-white text-xs font-medium rounded-lg py-2"
+                >
+                  Plan safest route to site →
+                </button>
+              )}
             </div>
           ) : (
             <p className="text-sm text-slate-500">Select a mast marker on the map to see its status.</p>
@@ -201,7 +209,7 @@ export default function MapView() {
               {vulnerabilityZones.map((z) => (
                 <li key={z.id} className="flex items-center justify-between border-b border-slate-100 py-1 last:border-0">
                   <span className="text-slate-700">{z.label}</span>
-                  <span className="font-semibold text-purple-700">{z.psrCount} PSR · {z.households} households</span>
+                  <span className="font-semibold text-amber-700">{z.psrCount} PSR · {z.households} households</span>
                 </li>
               ))}
             </ul>
