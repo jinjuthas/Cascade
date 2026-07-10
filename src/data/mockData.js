@@ -32,13 +32,58 @@ export const mobileOutageZone = {
   points: "260,140 460,120 560,190 540,340 400,360 300,300 250,220",
 };
 
+// Wind gust forecast timeline, hourly from -6h (past) to +6h (forecast), storm peaking at "now".
+// Gust speed is a base reading (mph) applied to each cable risk point via its exposureMph below.
+export const weatherTimeline = [
+  { hourOffset: -6, label: "-6h", gustMph: 22 },
+  { hourOffset: -5, label: "-5h", gustMph: 26 },
+  { hourOffset: -4, label: "-4h", gustMph: 32 },
+  { hourOffset: -3, label: "-3h", gustMph: 38 },
+  { hourOffset: -2, label: "-2h", gustMph: 45 },
+  { hourOffset: -1, label: "-1h", gustMph: 51 },
+  { hourOffset: 0, label: "Now", gustMph: 58 },
+  { hourOffset: 1, label: "+1h", gustMph: 54, forecast: true },
+  { hourOffset: 2, label: "+2h", gustMph: 47, forecast: true },
+  { hourOffset: 3, label: "+3h", gustMph: 39, forecast: true },
+  { hourOffset: 4, label: "+4h", gustMph: 31, forecast: true },
+  { hourOffset: 5, label: "+5h", gustMph: 25, forecast: true },
+  { hourOffset: 6, label: "+6h", gustMph: 20, forecast: true },
+];
+
+// Overhead-line cable runs exposed to wind — each has an exposure multiplier reflecting terrain
+// (open fen vs. sheltered village) applied to the base gust reading above.
+export const cableRiskPoints = [
+  { id: "crp-1", label: "Blythe Fen overhead run", x: 300, y: 195, exposure: 1.25 },
+  { id: "crp-2", label: "Wickham Cross overhead run", x: 160, y: 205, exposure: 1.0 },
+  { id: "crp-3", label: "Ashcombe Parva overhead run", x: 480, y: 260, exposure: 0.85 },
+  { id: "crp-4", label: "Netherstow overhead run", x: 560, y: 340, exposure: 0.9 },
+];
+
+// Wind risk banding for overhead cables, roughly aligned to UK Met Office gust-warning thresholds.
+export function cableRiskLevel(effectiveGustMph) {
+  if (effectiveGustMph >= 55) return { level: "severe", color: "#b91c1c" };
+  if (effectiveGustMph >= 40) return { level: "high", color: "#f97316" };
+  if (effectiveGustMph >= 28) return { level: "moderate", color: "#eab308" };
+  return { level: "low", color: "#16a34a" };
+}
+
 // Vulnerability hotspot zones — aggregate PSR-flagged counts only, no personal data.
+// GDPR / small-numbers rule: never add per-resident fields (name, address, condition) here.
+// Any new field on this object must be a zone-level aggregate, not an individual record.
 export const vulnerabilityZones = [
   { id: "vz-1", label: "Blythe Fen", x: 330, y: 230, psrCount: 23, households: 14 },
   { id: "vz-2", label: "Wickham Cross", x: 190, y: 150, psrCount: 9, households: 7 },
   { id: "vz-3", label: "Ashcombe Parva", x: 470, y: 190, psrCount: 6, households: 5 },
   { id: "vz-4", label: "Netherstow", x: 590, y: 300, psrCount: 4, households: 3 },
 ];
+
+// Small-numbers disclosure control: counts below this are never shown as an exact figure,
+// since a low count in a small rural hamlet can be enough to identify an individual.
+export const PSR_DISCLOSURE_THRESHOLD = 5;
+
+export function displayPsrCount(count) {
+  return count < PSR_DISCLOSURE_THRESHOLD ? `<${PSR_DISCLOSURE_THRESHOLD}` : String(count);
+}
 
 // Mast sites in the affected area
 export const mastSites = [
@@ -89,6 +134,136 @@ export const mastSites = [
     status: "manual-required",
     intervention: true,
     notes: "Mains never lost — outage is backhaul fibre cut. Auto-restart not applicable, needs field engineer to re-patch backhaul.",
+  },
+];
+
+// Generator fleet — deployed and in-stock units. fuelPercent is remaining fuel; autoHandover
+// describes whether the unit switches back to mains automatically once power is restored, or
+// needs a field engineer to do it manually.
+export const initialGeneratorFleet = [
+  {
+    id: "GEN-01",
+    status: "deployed",
+    location: "Blythe Fen Church Rd (BLF-002)",
+    x: 352,
+    y: 262,
+    fuelPercent: 62,
+    mainsRestored: false,
+    autoHandover: "enabled",
+    assignedTo: "J. Okafor — Energy DNO Field Team 3",
+    notes: "Dispatched 07:10 to the critical dual-outage mast. Running stable.",
+  },
+  {
+    id: "GEN-02",
+    status: "deployed",
+    location: "Wickham Cross mast (WCX-014)",
+    x: 165,
+    y: 112,
+    fuelPercent: 18,
+    mainsRestored: false,
+    autoHandover: "manual",
+    assignedTo: "J. Okafor — Energy DNO Field Team 3",
+    notes: "Fuel running low — refuel or swap needed within ~3 hrs. Auto-handover relay faulty, will need manual switch-over when mains returns.",
+  },
+  {
+    id: "GEN-05",
+    status: "deployed",
+    location: "Orchard Court sheltered housing, Blythe Fen",
+    x: 352,
+    y: 205,
+    fuelPercent: 45,
+    mainsRestored: false,
+    autoHandover: "enabled",
+    assignedTo: "R. Whitfield — Energy DNO Control",
+    notes: "Providing backup lighting/heating for the sheltered housing welfare case pending mains restoration.",
+  },
+  {
+    id: "GEN-03",
+    status: "in-stock",
+    location: "Wickham Cross Joint Response Depot",
+    fuelPercent: 100,
+    mainsRestored: null,
+    autoHandover: "enabled",
+    assignedTo: "Unassigned",
+    notes: "Ready for dispatch.",
+  },
+  {
+    id: "GEN-04",
+    status: "in-stock",
+    location: "Wickham Cross Joint Response Depot",
+    fuelPercent: 100,
+    mainsRestored: null,
+    autoHandover: "enabled",
+    assignedTo: "Unassigned",
+    notes: "Ready for dispatch.",
+  },
+  {
+    id: "GEN-06",
+    status: "in-stock",
+    location: "Wickham Cross Joint Response Depot",
+    fuelPercent: 88,
+    mainsRestored: null,
+    autoHandover: "enabled",
+    assignedTo: "Unassigned",
+    notes: "Returned from routine test run — topped up, ready for dispatch.",
+  },
+];
+
+// Portable comms units (satellite phone / mesh radio kits) — deployable backup comms for
+// welfare coordination when the mobile network is down. Status moves in-storage → pre-positioned
+// (staged ahead of a forecast risk) → deployed. Checklist is the field usage/training steps.
+export const initialCommsUnits = [
+  {
+    id: "PCU-01",
+    status: "deployed",
+    location: "Blythe Fen (dual-outage zone)",
+    x: 320,
+    y: 220,
+    assignedTo: "M. Iqbal — Telecom MNO Field Ops",
+    notes: "Deployed to restore emergency comms for welfare coordination in the dual-outage zone.",
+    checklist: [
+      { step: "Unit powered on and self-test passed", done: true },
+      { step: "Paired with NOC control channel", done: true },
+      { step: "Site contact briefed on use", done: true },
+    ],
+  },
+  {
+    id: "PCU-02",
+    status: "pre-positioned",
+    location: "Wickham Cross depot cache",
+    x: 120,
+    y: 430,
+    assignedTo: "Unassigned",
+    notes: "Pre-positioned ahead of the forecast wind peak per the storm track, ready for rapid deployment.",
+    checklist: [
+      { step: "Unit powered on and self-test passed", done: true },
+      { step: "Paired with NOC control channel", done: false },
+      { step: "Site contact briefed on use", done: false },
+    ],
+  },
+  {
+    id: "PCU-03",
+    status: "in-storage",
+    location: "Wickham Cross Joint Response Depot",
+    assignedTo: "Unassigned",
+    notes: "Ready for pre-positioning or deployment.",
+    checklist: [
+      { step: "Unit powered on and self-test passed", done: false },
+      { step: "Paired with NOC control channel", done: false },
+      { step: "Site contact briefed on use", done: false },
+    ],
+  },
+  {
+    id: "PCU-04",
+    status: "in-storage",
+    location: "Wickham Cross Joint Response Depot",
+    assignedTo: "Unassigned",
+    notes: "Ready for pre-positioning or deployment.",
+    checklist: [
+      { step: "Unit powered on and self-test passed", done: false },
+      { step: "Paired with NOC control channel", done: false },
+      { step: "Site contact briefed on use", done: false },
+    ],
   },
 ];
 
@@ -153,6 +328,8 @@ export const initialTimeline = [
 ];
 
 // Welfare task board — informal welfare checks, assignable to either company's field staff.
+// x/y place each case as a pin on the map; history is a short reference log of what happened,
+// where, and why, kept attached to the case for coordinators (not personal/clinical data).
 export const initialWelfareTasks = [
   {
     id: "w1",
@@ -162,6 +339,12 @@ export const initialWelfareTasks = [
     assignedTo: "J. Okafor — Energy DNO Field Team 3",
     priority: "high",
     status: "reported",
+    x: 315,
+    y: 248,
+    history: [
+      { time: "06:42", note: "Case opened — cross-referenced against PSR register after power outage declared." },
+      { time: "07:40", note: "Field Team 3 requested for in-person check. No response on landline; mobile down in area." },
+    ],
   },
   {
     id: "w2",
@@ -171,6 +354,11 @@ export const initialWelfareTasks = [
     assignedTo: "Unassigned",
     priority: "high",
     status: "reported",
+    x: 352,
+    y: 213,
+    history: [
+      { time: "07:15", note: "Warden confirmed on-site via neighbour relay, but scheme itself uncontactable." },
+    ],
   },
   {
     id: "w3",
@@ -180,6 +368,12 @@ export const initialWelfareTasks = [
     assignedTo: "M. Iqbal — Telecom MNO Field Ops",
     priority: "high",
     status: "in-progress",
+    x: 208,
+    y: 168,
+    history: [
+      { time: "06:50", note: "Property flagged via PSR cross-reference — powered medical equipment on site." },
+      { time: "07:35", note: "M. Iqbal dispatched, ETA 10 min. Backup power confirmed available at property." },
+    ],
   },
   {
     id: "w4",
@@ -189,6 +383,12 @@ export const initialWelfareTasks = [
     assignedTo: "J. Okafor — Energy DNO Field Team 3",
     priority: "medium",
     status: "resolved",
+    x: 470,
+    y: 206,
+    history: [
+      { time: "07:00", note: "Reported by neighbour — family relies on mobile, currently down in this area." },
+      { time: "08:20", note: "Checked in via generator-powered neighbour's landline. Family confirmed safe and well." },
+    ],
   },
   {
     id: "w5",
@@ -197,6 +397,12 @@ export const initialWelfareTasks = [
     detail: "Outside dual-outage zone but requested reassurance call given proximity.",
     assignedTo: "M. Iqbal — Telecom MNO Field Ops",
     priority: "low",
+    x: 260,
+    y: 396,
+    history: [
+      { time: "07:50", note: "Reassurance call requested by family member, though property is outside the dual-outage zone." },
+      { time: "08:10", note: "Call completed — couple confirmed unaffected, no further action needed." },
+    ],
     status: "resolved",
   },
 ];
@@ -240,14 +446,16 @@ export const hazards = [
   },
 ];
 
-// Dispatch destinations for the route planner — mast sites plus one welfare-only
-// location (Cold Marsh Green has no mast but has an active welfare task).
+// Dispatch destinations for the route planner — mast sites, one welfare-only location
+// (Cold Marsh Green has no mast but has an active welfare task), and one generator-only
+// location (Orchard Court has GEN-05 but no mast of its own).
 export const dispatchDestinations = [
-  { id: "WCX-014", label: "Wickham Cross mast (WCX-014)", x: 150, y: 95, kind: "mast" },
-  { id: "BLF-002", label: "Blythe Fen Church Rd mast (BLF-002)", x: 340, y: 250, kind: "mast" },
-  { id: "ASP-031", label: "Ashcombe Parva Water Tower (ASP-031)", x: 450, y: 210, kind: "mast" },
-  { id: "NTS-019", label: "Netherstow Exchange (NTS-019)", x: 570, y: 290, kind: "mast" },
-  { id: "cold-marsh-green", label: "Cold Marsh Green (welfare visit)", x: 260, y: 380, kind: "settlement" },
+  { id: "WCX-014", label: "Wickham Cross mast (WCX-014)", shortLabel: "WCX-014", x: 150, y: 95, kind: "mast" },
+  { id: "BLF-002", label: "Blythe Fen Church Rd mast (BLF-002)", shortLabel: "BLF-002", x: 340, y: 250, kind: "mast" },
+  { id: "ASP-031", label: "Ashcombe Parva Water Tower (ASP-031)", shortLabel: "ASP-031", x: 450, y: 210, kind: "mast" },
+  { id: "NTS-019", label: "Netherstow Exchange (NTS-019)", shortLabel: "NTS-019", x: 570, y: 290, kind: "mast" },
+  { id: "cold-marsh-green", label: "Cold Marsh Green (welfare visit)", shortLabel: "Cold Marsh Green", x: 260, y: 380, kind: "settlement" },
+  { id: "orchard-court", label: "Orchard Court, Blythe Fen (generator GEN-05)", shortLabel: "Orchard Court", x: 352, y: 205, kind: "generator" },
 ];
 
 // Maps a welfare task's free-text location to the nearest route-planner destination.
@@ -261,6 +469,13 @@ export function resolveDestinationId(location) {
   ];
   const match = known.find(([name]) => location.includes(name));
   return match ? match[1] : null;
+}
+
+// Maps a deployed generator to the nearest route-planner destination, for the
+// "Plan fuel delivery" action on the Resources panel.
+export function resolveGeneratorDestinationId(generatorId) {
+  const map = { "GEN-01": "BLF-002", "GEN-02": "WCX-014", "GEN-05": "orchard-court" };
+  return map[generatorId] || null;
 }
 
 // Candidate routes from the depot to each destination. Distances in miles,
@@ -278,6 +493,9 @@ export const routeOptions = {
       safetyScore: 5,
       hazardsOnRoute: ["h1"],
       notes: "Shortest route but crosses the flooded ford at Fen Causeway.",
+      mode: "truck",
+      resourcesRequired: ["4x4 recommended — fords Fen Causeway"],
+      dataSource: { type: "satellite", asOf: "90 min ago", stale: true },
     },
     {
       id: "wcx-r2",
@@ -289,6 +507,9 @@ export const routeOptions = {
       safetyScore: 9,
       hazardsOnRoute: [],
       notes: "Slightly longer, stays clear of all known hazards.",
+      mode: "truck",
+      resourcesRequired: [],
+      dataSource: { type: "self-reported", asOf: "20 min ago", stale: false },
     },
   ],
   "BLF-002": [
@@ -302,6 +523,9 @@ export const routeOptions = {
       safetyScore: 4,
       hazardsOnRoute: ["h2"],
       notes: "Fastest route but passes the downed power line on Church Road.",
+      mode: "truck",
+      resourcesRequired: ["Caution — live downed line reported nearby"],
+      dataSource: { type: "self-reported", asOf: "35 min ago", stale: false },
     },
     {
       id: "blf-r2",
@@ -313,6 +537,24 @@ export const routeOptions = {
       safetyScore: 9,
       hazardsOnRoute: [],
       notes: "Avoids the downed line, minor detour south of Blythe Fen.",
+      mode: "truck",
+      resourcesRequired: [],
+      dataSource: { type: "self-reported", asOf: "12 min ago", stale: false },
+    },
+    {
+      id: "blf-r3",
+      label: "Drone resupply drop",
+      path: "70,470 150,380 220,320 280,285 340,250",
+      distanceMiles: 4.9,
+      etaMinutes: 6,
+      energyKwh: 0.3,
+      safetyScore: 10,
+      hazardsOnRoute: [],
+      notes: "Bypasses all ground hazards entirely. Small payload only (radio batteries, spares) — not suitable for generator delivery.",
+      mode: "drone",
+      resourcesRequired: ["Drone operator — typically a military or fire/rescue asset, not usually available to field engineering teams directly"],
+      dataSource: { type: "drone", asOf: "Live", stale: false },
+      payloadLimited: true,
     },
   ],
   "ASP-031": [
@@ -326,6 +568,9 @@ export const routeOptions = {
       safetyScore: 5,
       hazardsOnRoute: ["h3"],
       notes: "Ashcombe Lane has a fallen tree partially blocking the carriageway.",
+      mode: "truck",
+      resourcesRequired: ["Chainsaw/clearance crew may be needed"],
+      dataSource: { type: "drone", asOf: "45 min ago", stale: false },
     },
     {
       id: "asp-r2",
@@ -337,6 +582,9 @@ export const routeOptions = {
       safetyScore: 8,
       hazardsOnRoute: [],
       notes: "Longer but clear road, avoids the Ashcombe Lane obstruction.",
+      mode: "truck",
+      resourcesRequired: [],
+      dataSource: { type: "satellite", asOf: "3 hrs ago", stale: true },
     },
   ],
   "NTS-019": [
@@ -350,6 +598,9 @@ export const routeOptions = {
       safetyScore: 8,
       hazardsOnRoute: [],
       notes: "Clear B-road route, no known hazards, good surface for EV range.",
+      mode: "truck",
+      resourcesRequired: [],
+      dataSource: { type: "self-reported", asOf: "40 min ago", stale: false },
     },
     {
       id: "nts-r2",
@@ -361,6 +612,9 @@ export const routeOptions = {
       safetyScore: 5,
       hazardsOnRoute: ["h3"],
       notes: "Slightly shorter but crosses the Ashcombe Lane obstruction.",
+      mode: "truck",
+      resourcesRequired: ["Chainsaw/clearance crew may be needed"],
+      dataSource: { type: "drone", asOf: "45 min ago", stale: false },
     },
   ],
   "cold-marsh-green": [
@@ -374,6 +628,9 @@ export const routeOptions = {
       safetyScore: 9,
       hazardsOnRoute: [],
       notes: "Short, clear local route.",
+      mode: "foot",
+      resourcesRequired: [],
+      dataSource: { type: "self-reported", asOf: "15 min ago", stale: false },
     },
     {
       id: "cmg-r2",
@@ -385,6 +642,39 @@ export const routeOptions = {
       safetyScore: 6,
       hazardsOnRoute: ["h1"],
       notes: "Marginally longer and crosses the flooded ford — unnecessary detour here.",
+      mode: "dinghy",
+      resourcesRequired: ["Dinghy required — ford impassable to vehicles"],
+      dataSource: { type: "satellite", asOf: "90 min ago", stale: true },
+    },
+  ],
+  "orchard-court": [
+    {
+      id: "orc-r1",
+      label: "Via Blythe Fen high street",
+      path: "70,470 180,430 260,360 320,290 352,240 352,205",
+      distanceMiles: 4.9,
+      etaMinutes: 13,
+      energyKwh: 1.9,
+      safetyScore: 9,
+      hazardsOnRoute: [],
+      notes: "Clear approach to the sheltered housing scheme, avoids Church Road.",
+      mode: "truck",
+      resourcesRequired: [],
+      dataSource: { type: "self-reported", asOf: "18 min ago", stale: false },
+    },
+    {
+      id: "orc-r2",
+      label: "Direct via Church Road",
+      path: "70,470 180,430 260,360 300,265 330,230 352,205",
+      distanceMiles: 4.2,
+      etaMinutes: 11,
+      energyKwh: 1.7,
+      safetyScore: 4,
+      hazardsOnRoute: ["h2"],
+      notes: "Shorter but passes the same downed power line flagged on Church Road.",
+      mode: "truck",
+      resourcesRequired: ["Caution — live downed line reported nearby"],
+      dataSource: { type: "self-reported", asOf: "35 min ago", stale: false },
     },
   ],
 };

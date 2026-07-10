@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   settlements,
   powerOutageZone,
   mobileOutageZone,
   vulnerabilityZones,
   mastSites,
+  displayPsrCount,
+  weatherTimeline,
+  cableRiskPoints,
+  cableRiskLevel,
 } from "../data/mockData";
 
 const statusStyle = {
@@ -14,11 +18,37 @@ const statusStyle = {
   "manual-required": "bg-rose-100 text-rose-800 ring-rose-300",
 };
 
-export default function MapView({ onPlanRoute }) {
-  const [showVulnerability, setShowVulnerability] = useState(false);
-  const [selected, setSelected] = useState(null);
+const welfarePinColor = {
+  reported: "#dc2626",
+  "in-progress": "#d97706",
+  resolved: "#16a34a",
+};
 
-  const selectedMast = mastSites.find((m) => m.id === selected);
+const welfareStatusLabel = {
+  reported: "Reported",
+  "in-progress": "In progress",
+  resolved: "Resolved",
+};
+
+export default function MapView({ onPlanRoute, welfareTasks = [] }) {
+  const [showVulnerability, setShowVulnerability] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
+  const [showWelfarePins, setShowWelfarePins] = useState(true);
+  const [hourIndex, setHourIndex] = useState(6); // index 6 = hourOffset 0 ("Now")
+  const [selected, setSelected] = useState(null); // { type: "mast" | "welfare", id }
+
+  const selectedMast = selected?.type === "mast" ? mastSites.find((m) => m.id === selected.id) : null;
+  const selectedWelfare = selected?.type === "welfare" ? welfareTasks.find((w) => w.id === selected.id) : null;
+  const currentHour = weatherTimeline[hourIndex];
+
+  const riskReadings = useMemo(
+    () =>
+      cableRiskPoints.map((p) => {
+        const effectiveGust = Math.round(currentHour.gustMph * p.exposure);
+        return { ...p, effectiveGust, risk: cableRiskLevel(effectiveGust) };
+      }),
+    [currentHour]
+  );
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
@@ -28,25 +58,91 @@ export default function MapView({ onPlanRoute }) {
             <h2 className="text-base font-semibold text-slate-900">Outage Overlay Map</h2>
             <p className="text-xs text-slate-500">Wickham Cross &amp; Blythe Fen area, rural Suffolk, UK</p>
           </div>
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 select-none cursor-pointer bg-slate-50 border border-slate-200 rounded-full pl-3 pr-1 py-1">
-            Vulnerability layer
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showVulnerability}
-              onClick={() => setShowVulnerability((v) => !v)}
-              className={`relative h-6 w-11 rounded-full transition-colors ${
-                showVulnerability ? "bg-amber-600" : "bg-slate-300"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                  showVulnerability ? "translate-x-5" : ""
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 select-none cursor-pointer bg-slate-50 border border-slate-200 rounded-full pl-3 pr-1 py-1">
+              Weather layer
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showWeather}
+                onClick={() => setShowWeather((v) => !v)}
+                className={`relative h-6 w-11 rounded-full transition-colors ${
+                  showWeather ? "bg-sky-600" : "bg-slate-300"
                 }`}
-              />
-            </button>
-          </label>
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    showWeather ? "translate-x-5" : ""
+                  }`}
+                />
+              </button>
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 select-none cursor-pointer bg-slate-50 border border-slate-200 rounded-full pl-3 pr-1 py-1">
+              Vulnerability layer
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showVulnerability}
+                onClick={() => setShowVulnerability((v) => !v)}
+                className={`relative h-6 w-11 rounded-full transition-colors ${
+                  showVulnerability ? "bg-amber-600" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    showVulnerability ? "translate-x-5" : ""
+                  }`}
+                />
+              </button>
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 select-none cursor-pointer bg-slate-50 border border-slate-200 rounded-full pl-3 pr-1 py-1">
+              Welfare pins
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showWelfarePins}
+                onClick={() => setShowWelfarePins((v) => !v)}
+                className={`relative h-6 w-11 rounded-full transition-colors ${
+                  showWelfarePins ? "bg-rose-600" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    showWelfarePins ? "translate-x-5" : ""
+                  }`}
+                />
+              </button>
+            </label>
+          </div>
         </div>
+
+        {showWeather && (
+          <div className="px-4 py-3 border-b border-slate-200 bg-sky-50/60">
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <label htmlFor="weather-scrubber" className="text-xs font-medium text-slate-700">
+                Forecast time: <span className="font-semibold text-slate-900">{currentHour.label}</span>
+                {currentHour.forecast && <span className="text-sky-700"> (forecast)</span>}
+              </label>
+              <span className="text-xs font-semibold text-slate-700">Base gust: {currentHour.gustMph} mph</span>
+            </div>
+            <input
+              id="weather-scrubber"
+              type="range"
+              min="0"
+              max={weatherTimeline.length - 1}
+              step="1"
+              value={hourIndex}
+              onChange={(e) => setHourIndex(Number(e.target.value))}
+              className="w-full accent-sky-600"
+              aria-valuetext={`${currentHour.label}, base gust ${currentHour.gustMph} mph`}
+            />
+            <div className="flex justify-between text-[10px] text-slate-500 mt-0.5">
+              <span>-6h</span>
+              <span>Now</span>
+              <span>+6h</span>
+            </div>
+          </div>
+        )}
 
         <div className="relative bg-[#eef3ea]">
           <svg viewBox="0 0 800 520" className="w-full h-auto block" role="img" aria-label="Outage overlay map">
@@ -90,6 +186,19 @@ export default function MapView({ onPlanRoute }) {
               strokeWidth="2"
             />
 
+            {showWeather &&
+              riskReadings.map((p) => (
+                <g key={p.id} transform={`translate(${p.x}, ${p.y})`}>
+                  <circle r="10" fill={p.risk.color} fillOpacity="0.85" stroke="white" strokeWidth="2" />
+                  <text y="4" textAnchor="middle" fontSize="10" fontWeight="700" fill="white">
+                    {p.effectiveGust}
+                  </text>
+                  <text y="-16" textAnchor="middle" fontSize="10" fontWeight="600" fill="#1e293b" className="capitalize">
+                    {p.risk.level}
+                  </text>
+                </g>
+              ))}
+
             {showVulnerability &&
               vulnerabilityZones.map((z) => {
                 const r = 14 + Math.sqrt(z.psrCount) * 4;
@@ -98,7 +207,7 @@ export default function MapView({ onPlanRoute }) {
                     <circle cx={z.x} cy={z.y} r={r} fill="#d97706" fillOpacity="0.25" stroke="#d97706" strokeWidth="1.5" />
                     <circle cx={z.x} cy={z.y} r="3" fill="#92400e" />
                     <text x={z.x} y={z.y - r - 6} textAnchor="middle" fontSize="12" fontWeight="600" fill="#92400e">
-                      {z.psrCount} PSR
+                      {displayPsrCount(z.psrCount)} PSR
                     </text>
                   </g>
                 );
@@ -113,14 +222,30 @@ export default function MapView({ onPlanRoute }) {
               </g>
             ))}
 
+            {showWelfarePins &&
+              welfareTasks.map((w) => {
+                const isSelected = selected?.type === "welfare" && selected.id === w.id;
+                return (
+                  <g
+                    key={w.id}
+                    transform={`translate(${w.x}, ${w.y})`}
+                    onClick={() => setSelected(isSelected ? null : { type: "welfare", id: w.id })}
+                    className="cursor-pointer"
+                  >
+                    {isSelected && <circle r="16" fill="none" stroke="#0f172a" strokeWidth="1.5" strokeDasharray="3 3" />}
+                    <circle r="7" fill={welfarePinColor[w.status]} stroke="white" strokeWidth="2" />
+                  </g>
+                );
+              })}
+
             {mastSites.map((m) => {
-              const isSelected = selected === m.id;
+              const isSelected = selected?.type === "mast" && selected.id === m.id;
               const needsAttention = m.intervention;
               return (
                 <g
                   key={m.id}
                   transform={`translate(${m.x}, ${m.y})`}
-                  onClick={() => setSelected(isSelected ? null : m.id)}
+                  onClick={() => setSelected(isSelected ? null : { type: "mast", id: m.id })}
                   className="cursor-pointer"
                 >
                   <polygon
@@ -151,9 +276,26 @@ export default function MapView({ onPlanRoute }) {
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-sm bg-purple-700/60 border border-purple-800" /> Dual outage (overlap)
             </div>
+            {showWelfarePins && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="h-3 w-3 rounded-full" style={{ background: welfarePinColor.reported }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: welfarePinColor["in-progress"] }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: welfarePinColor.resolved }} />
+                <span>Welfare case (reported / in progress / resolved)</span>
+              </div>
+            )}
             {showVulnerability && (
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-amber-600/30 border border-amber-700" /> PSR-flagged density
+              </div>
+            )}
+            {showWeather && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="h-3 w-3 rounded-full" style={{ background: "#16a34a" }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: "#eab308" }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: "#f97316" }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: "#b91c1c" }} />
+                <span>Cable wind risk (low → severe)</span>
               </div>
             )}
           </div>
@@ -163,7 +305,7 @@ export default function MapView({ onPlanRoute }) {
       <div className="space-y-4">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
           <h3 className="text-sm font-semibold text-slate-900 mb-1">Site detail</h3>
-          {selectedMast ? (
+          {selectedMast && (
             <div className="space-y-2 text-left">
               <p className="text-sm font-semibold text-slate-900">{selectedMast.name}</p>
               <p className="text-xs text-slate-500">{selectedMast.id} · {selectedMast.village}</p>
@@ -192,8 +334,57 @@ export default function MapView({ onPlanRoute }) {
                 </button>
               )}
             </div>
-          ) : (
-            <p className="text-sm text-slate-500">Select a mast marker on the map to see its status.</p>
+          )}
+          {selectedWelfare && (
+            <div className="space-y-2 text-left">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">{selectedWelfare.title}</p>
+                <span
+                  className="shrink-0 h-2.5 w-2.5 rounded-full mt-1"
+                  style={{ background: welfarePinColor[selectedWelfare.status] }}
+                />
+              </div>
+              <p className="text-xs text-slate-500">{selectedWelfare.location}</p>
+              <span className="inline-flex ring-1 ring-slate-200 bg-slate-50 rounded-full px-2 py-0.5 text-xs font-medium text-slate-700">
+                {welfareStatusLabel[selectedWelfare.status]}
+              </span>
+              <p className="text-xs text-slate-600 leading-relaxed">{selectedWelfare.detail}</p>
+              <div className="pt-1">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Reference notes</p>
+                <ul className="space-y-1">
+                  {selectedWelfare.history.map((h, i) => (
+                    <li key={i} className="text-xs text-slate-600 flex gap-1.5">
+                      <span className="font-mono text-slate-400 shrink-0">{h.time}</span>
+                      <span>{h.note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          {!selectedMast && !selectedWelfare && (
+            <p className="text-sm text-slate-500">Select a mast marker or welfare pin on the map to see its status.</p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-left">
+          <h3 className="text-sm font-semibold text-slate-900 mb-2">Weather layer</h3>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Wind gust exposure at each overhead-line cable run, scrubbed across a -6h to +6h
+            forecast window so planners can see how cable risk builds and eases as the storm
+            passes. Ratings are relative and for demonstration only.
+          </p>
+          {showWeather && (
+            <ul className="mt-3 space-y-1.5 text-xs">
+              {riskReadings.map((p) => (
+                <li key={p.id} className="flex items-center justify-between border-b border-slate-100 py-1 last:border-0">
+                  <span className="text-slate-700">{p.label}</span>
+                  <span className="font-semibold capitalize" style={{ color: p.risk.color }}>
+                    {p.effectiveGust} mph · {p.risk.level}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
@@ -203,13 +394,15 @@ export default function MapView({ onPlanRoute }) {
             Shows anonymised, aggregate counts of Priority Services Register (PSR) flagged households per zone only.
             No names, addresses or personal data are displayed on this dashboard, consistent with GDPR data
             minimisation requirements — individual welfare actions are coordinated via the Welfare Task Board.
+            Zone counts below 5 are shown as "&lt;5" rather than an exact figure, since a precise small number in a
+            rural hamlet can be enough to identify an individual.
           </p>
           {showVulnerability && (
             <ul className="mt-3 space-y-1.5 text-xs">
               {vulnerabilityZones.map((z) => (
                 <li key={z.id} className="flex items-center justify-between border-b border-slate-100 py-1 last:border-0">
                   <span className="text-slate-700">{z.label}</span>
-                  <span className="font-semibold text-amber-700">{z.psrCount} PSR · {z.households} households</span>
+                  <span className="font-semibold text-amber-700">{displayPsrCount(z.psrCount)} PSR · {displayPsrCount(z.households)} households</span>
                 </li>
               ))}
             </ul>

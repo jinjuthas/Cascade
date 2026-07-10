@@ -1,15 +1,20 @@
 import { useState } from "react";
-import { incident, initialTimeline } from "./data/mockData";
+import { incident, initialTimeline, initialWelfareTasks } from "./data/mockData";
 import MapView from "./components/MapView";
 import RestartPanel from "./components/RestartPanel";
 import Timeline from "./components/Timeline";
 import WelfareBoard from "./components/WelfareBoard";
 import RoutePlanner from "./components/RoutePlanner";
+import ResourcePanel from "./components/ResourcePanel";
+import CommsDeployment from "./components/CommsDeployment";
+import AiAssistant from "./components/AiAssistant";
 
 const TABS = [
   { id: "map", label: "Map View" },
   { id: "restart", label: "Auto-Restart Status" },
   { id: "route", label: "Route Planner" },
+  { id: "resources", label: "Resources" },
+  { id: "assistant", label: "AI Assistant" },
   { id: "timeline", label: "Shared Timeline" },
   { id: "welfare", label: "Welfare Task Board" },
 ];
@@ -18,6 +23,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("map");
   const [routeDestinationId, setRouteDestinationId] = useState("BLF-002");
   const [timelineEvents, setTimelineEvents] = useState(initialTimeline);
+  const [welfareTasks, setWelfareTasks] = useState(initialWelfareTasks);
 
   function goToRoutePlanner(destinationId) {
     setRouteDestinationId(destinationId);
@@ -26,6 +32,15 @@ export default function App() {
 
   function postTimelineEvent(entry) {
     setTimelineEvents((prev) => [...prev, entry]);
+  }
+
+  function moveWelfareTask(id, newStatus) {
+    if (!newStatus) return;
+    setWelfareTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
+  }
+
+  function assignWelfareTask(id, assignedTo) {
+    setWelfareTasks((prev) => prev.map((t) => (t.id === id ? { ...t, assignedTo } : t)));
   }
 
   return (
@@ -74,13 +89,29 @@ export default function App() {
       </header>
 
       <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 sm:px-6 py-5">
-        {activeTab === "map" && <MapView onPlanRoute={goToRoutePlanner} />}
+        {activeTab === "map" && (
+          <MapView onPlanRoute={goToRoutePlanner} welfareTasks={welfareTasks} />
+        )}
         {activeTab === "restart" && <RestartPanel onPlanRoute={goToRoutePlanner} />}
         {activeTab === "route" && (
           <RoutePlanner destinationId={routeDestinationId} onSelectDestination={setRouteDestinationId} onDispatch={postTimelineEvent} />
         )}
+        {activeTab === "resources" && (
+          <div className="space-y-8">
+            <ResourcePanel onPlanRoute={goToRoutePlanner} />
+            <CommsDeployment />
+          </div>
+        )}
+        {activeTab === "assistant" && <AiAssistant welfareTasks={welfareTasks} />}
         {activeTab === "timeline" && <Timeline events={timelineEvents} onPost={postTimelineEvent} />}
-        {activeTab === "welfare" && <WelfareBoard onPlanRoute={goToRoutePlanner} />}
+        {activeTab === "welfare" && (
+          <WelfareBoard
+            tasks={welfareTasks}
+            onMove={moveWelfareTask}
+            onAssign={assignWelfareTask}
+            onPlanRoute={goToRoutePlanner}
+          />
+        )}
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-3">

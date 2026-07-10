@@ -22,13 +22,46 @@ const hazardColor = {
   "road-closure": "#57534e",
 };
 
+const modeGlyph = {
+  truck: "🚚",
+  foot: "🚶",
+  dinghy: "🛶",
+  drone: "🛸",
+  "army-bridge": "🌉",
+};
+
+const modeLabel = {
+  truck: "Truck",
+  foot: "On foot",
+  dinghy: "Dinghy",
+  drone: "Drone",
+  "army-bridge": "Army bridge",
+};
+
+const dataSourceLabel = {
+  "self-reported": "Field-reported",
+  satellite: "Satellite",
+  drone: "Drone flyover",
+};
+
 function formatTime(date) {
   return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+// Midpoint of an SVG polyline "x1,y1 x2,y2 ..." string, used to place a self-report marker.
+function pathMidpoint(path) {
+  const points = path.trim().split(" ").map((pair) => pair.split(",").map(Number));
+  const [x, y] = points[Math.floor(points.length / 2)];
+  return { x, y };
 }
 
 export default function RoutePlanner({ destinationId, onSelectDestination, onDispatch }) {
   const [dispatchLog, setDispatchLog] = useState({});
   const [hoveredRoute, setHoveredRoute] = useState(null);
+  const [reports, setReports] = useState({}); // routeId -> { note, time }
+  const [reportRouteId, setReportRouteId] = useState("");
+  const [reportNote, setReportNote] = useState("");
+  const [modeFilter, setModeFilter] = useState("all");
 
   const destination = dispatchDestinations.find((d) => d.id === destinationId) || dispatchDestinations[0];
   const linkedMast = mastSites.find((m) => m.id === destination.id);
@@ -36,11 +69,49 @@ export default function RoutePlanner({ destinationId, onSelectDestination, onDis
   const scoredRoutes = useMemo(() => {
     const candidates = routeOptions[destination.id] || [];
     return candidates
-      .map((r) => ({ ...r, score: scoreRoute(r) }))
+      .map((r) => {
+        const report = reports[r.id];
+        // A field-engineer report is treated as at least as serious as a known hazard when scoring.
+        const effectiveHazards = report ? [...r.hazardsOnRoute, "engineer-reported"] : r.hazardsOnRoute;
+        return { ...r, report, score: scoreRoute({ ...r, hazardsOnRoute: effectiveHazards }) };
+      })
       .sort((a, b) => b.score - a.score);
-  }, [destination.id]);
+  }, [destination.id, reports]);
 
-  const recommended = scoredRoutes[0];
+  // An engineer report is a first-hand, real-time signal — it overrides the score-based ranking
+  // outright rather than just nudging it, unless every candidate route has been reported blocked.
+  // Payload-limited modes (e.g. a resupply drone) are never the default pick over a full-capability
+  // route, even if their score is highest, since they can't carry standard equipment like a generator.
+  const recommended =
+    scoredRoutes.find((r) => !r.report && !r.payloadLimited) ||
+    scoredRoutes.find((r) => !r.report) ||
+    scoredRoutes[0];
+
+  const availableModes = useMemo(
+    () => Array.from(new Set(scoredRoutes.map((r) => r.mode))),
+    [scoredRoutes]
+  );
+  const visibleRoutes =
+    modeFilter !== "all" && availableModes.includes(modeFilter)
+      ? scoredRoutes.filter((r) => r.mode === modeFilter)
+      : scoredRoutes;
+
+  function submitReport() {
+    if (!reportRouteId || !reportNote.trim()) return;
+    setReports((prev) => ({
+      ...prev,
+      [reportRouteId]: { note: reportNote.trim(), time: new Date() },
+    }));
+    setReportNote("");
+  }
+
+  function clearReport(routeId) {
+    setReports((prev) => {
+      const next = { ...prev };
+      delete next[routeId];
+      return next;
+    });
+  }
 
   function handleDispatch(route) {
     const now = new Date();
@@ -90,7 +161,7 @@ export default function RoutePlanner({ destinationId, onSelectDestination, onDis
             <polygon points={mobileOutageZone.points} fill="#dc2626" fillOpacity="0.1" stroke="#b91c1c" strokeWidth="1.5" strokeDasharray="6 4" />
             <polygon points={mobileOutageZone.points} clipPath="url(#clip-power-zone-route)" fill="#7e22ce" fillOpacity="0.2" stroke="#6b21a8" strokeWidth="1.5" />
 
-            {scoredRoutes
+            {visibleRoutes
               .slice()
               .reverse()
               .map((r) => {
@@ -124,10 +195,22 @@ export default function RoutePlanner({ destinationId, onSelectDestination, onDis
               </g>
             ))}
 
+            {scoredRoutes
+              .filter((r) => r.report)
+              .map((r) => {
+                const { x, y } = pathMidpoint(r.path);
+                return (
+                  <g key={`report-${r.id}`} transform={`translate(${x}, ${y})`}>
+                    <circle r="11" fill="#be123c" stroke="white" strokeWidth="2" />
+                    <text y="4" textAnchor="middle" fontSize="11" fill="white">🚧</text>
+                  </g>
+                );
+              })}
+
             <g transform={`translate(${destination.x}, ${destination.y})`}>
               <circle r="14" fill="none" stroke="#059669" strokeWidth="2" strokeDasharray="3 3" />
               <polygon points="0,-11 10,8 -10,8" fill="#0f172a" stroke="white" strokeWidth="2" />
-              <text x="0" y="26" textAnchor="middle" fontSize="11" fontWeight="700" fill="#0f172a">{destination.id === "cold-marsh-green" ? "Cold Marsh Green" : destination.id}</text>
+              <text x="0" y="26" textAnchor="middle" fontSize="11" fontWeight="700" fill="#0f172a">{destination.shortLabel}</text>
             </g>
           </svg>
 
@@ -142,12 +225,51 @@ export default function RoutePlanner({ destinationId, onSelectDestination, onDis
               <span>{hazardGlyph.flood}</span> Flood hazard
               <span>{hazardGlyph["power-line"]}</span> Downed line
               <span>{hazardGlyph["road-closure"]}</span> Road blocked
+              <span>🚧</span> Engineer-reported
             </div>
           </div>
         </div>
       </div>
 
       <div className="space-y-4">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-left">
+          <h3 className="text-sm font-semibold text-slate-900 mb-2">Engineer self-report</h3>
+          <p className="text-xs text-slate-500 mb-2">
+            First-hand reports from field engineers are the fastest signal for a blocked or cleared
+            route — treat as at least as reliable as satellite imagery, which is often obscured by
+            cloud cover during a storm and more useful for after-the-event assessment.
+          </p>
+          <div className="space-y-2">
+            <select
+              value={reportRouteId}
+              onChange={(e) => setReportRouteId(e.target.value)}
+              aria-label="Route to report on"
+              className="w-full text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              <option value="">Select a route to report on…</option>
+              {scoredRoutes.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <input
+              value={reportNote}
+              onChange={(e) => setReportNote(e.target.value)}
+              placeholder="e.g. Tree down blocking carriageway near the bridge"
+              aria-label="Route report note"
+              className="w-full text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+            />
+            <button
+              onClick={submitReport}
+              disabled={!reportRouteId || !reportNote.trim()}
+              className="w-full bg-rose-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg py-2"
+            >
+              Report route blocked
+            </button>
+          </div>
+        </div>
+
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-left">
           <h3 className="text-sm font-semibold text-slate-900 mb-2">Destination</h3>
           <select
@@ -174,8 +296,30 @@ export default function RoutePlanner({ destinationId, onSelectDestination, onDis
           )}
         </div>
 
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setModeFilter("all")}
+            className={`text-xs font-medium rounded-full px-2.5 py-1 border ${
+              modeFilter === "all" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"
+            }`}
+          >
+            All modes
+          </button>
+          {availableModes.map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setModeFilter(mode)}
+              className={`text-xs font-medium rounded-full px-2.5 py-1 border ${
+                modeFilter === mode ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"
+              }`}
+            >
+              {modeGlyph[mode]} {modeLabel[mode]}
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-3">
-          {scoredRoutes.map((r) => {
+          {visibleRoutes.map((r) => {
             const isRecommended = r.id === recommended.id;
             return (
               <div
@@ -187,7 +331,10 @@ export default function RoutePlanner({ destinationId, onSelectDestination, onDis
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-900">{r.label}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span title={modeLabel[r.mode]}>{modeGlyph[r.mode]}</span>
+                    <p className="text-sm font-semibold text-slate-900">{r.label}</p>
+                  </div>
                   {isRecommended && (
                     <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300 rounded-full px-2 py-0.5">
                       Recommended
@@ -215,6 +362,45 @@ export default function RoutePlanner({ destinationId, onSelectDestination, onDis
                   </p>
                 ) : (
                   <p className="text-[11px] font-medium text-emerald-700 mt-1">No known hazards on this route</p>
+                )}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span
+                    className={`text-[10px] font-medium rounded px-1.5 py-0.5 ${
+                      r.dataSource.stale ? "bg-slate-100 text-slate-500" : "bg-sky-100 text-sky-700"
+                    }`}
+                    title={r.dataSource.stale ? "This data source may be out of date" : "Recent data source"}
+                  >
+                    {dataSourceLabel[r.dataSource.type]} · {r.dataSource.asOf}
+                    {r.dataSource.stale ? " (stale)" : ""}
+                  </span>
+                  {r.payloadLimited && (
+                    <span className="text-[10px] font-medium rounded px-1.5 py-0.5 bg-purple-100 text-purple-700">
+                      Small payload only
+                    </span>
+                  )}
+                </div>
+                {r.resourcesRequired.length > 0 && (
+                  <ul className="mt-1.5 space-y-0.5">
+                    {r.resourcesRequired.map((res, i) => (
+                      <li key={i} className="text-[11px] text-slate-600 flex gap-1">
+                        <span className="shrink-0">•</span>
+                        <span>{res}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {r.report && (
+                  <div className="mt-2 flex items-start justify-between gap-2 bg-rose-50 border border-rose-200 rounded-md px-2 py-1.5">
+                    <p className="text-[11px] text-rose-800 leading-snug">
+                      🚧 Engineer-reported at {formatTime(r.report.time)}: {r.report.note}
+                    </p>
+                    <button
+                      onClick={() => clearReport(r.id)}
+                      className="shrink-0 text-[11px] font-medium text-rose-700 underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 )}
                 <button
                   onClick={() => handleDispatch(r)}

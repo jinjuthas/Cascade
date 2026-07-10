@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { initialWelfareTasks, resolveDestinationId } from "../data/mockData";
+import { resolveDestinationId } from "../data/mockData";
 
 const COLUMNS = [
   { id: "reported", label: "Reported" },
@@ -93,18 +92,7 @@ function TaskCard({ task, onMove, onAssign, onPlanRoute }) {
   );
 }
 
-export default function WelfareBoard({ onPlanRoute }) {
-  const [tasks, setTasks] = useState(initialWelfareTasks);
-
-  function moveTask(id, newStatus) {
-    if (!newStatus) return;
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
-  }
-
-  function assignTask(id, assignedTo) {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, assignedTo } : t)));
-  }
-
+export default function WelfareBoard({ tasks, onMove, onAssign, onPlanRoute }) {
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-left">
@@ -127,7 +115,7 @@ export default function WelfareBoard({ onPlanRoute }) {
               </div>
               <div className="space-y-3 min-h-[80px]">
                 {colTasks.map((t) => (
-                  <TaskCard key={t.id} task={t} onMove={moveTask} onAssign={assignTask} onPlanRoute={onPlanRoute} />
+                  <TaskCard key={t.id} task={t} onMove={onMove} onAssign={onAssign} onPlanRoute={onPlanRoute} />
                 ))}
                 {colTasks.length === 0 && (
                   <p className="text-xs text-slate-400 text-center py-6">No tasks</p>
