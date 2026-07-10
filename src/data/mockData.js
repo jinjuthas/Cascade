@@ -34,20 +34,38 @@ export const mobileOutageZone = {
 
 // Wind gust forecast timeline, hourly from -6h (past) to +6h (forecast), storm peaking at "now".
 // Gust speed is a base reading (mph) applied to each cable risk point via its exposureMph below.
+// Wind gust readings (gustMph) and their severity banding are load-bearing for the Map View
+// weather layer — do not change existing values or cableRiskLevel() thresholds/colors when
+// extending this timeline. Temperature/rain/wind-direction/condition fields below are additive
+// and only used by the Weather tab.
 export const weatherTimeline = [
-  { hourOffset: -6, label: "-6h", gustMph: 22 },
-  { hourOffset: -5, label: "-5h", gustMph: 26 },
-  { hourOffset: -4, label: "-4h", gustMph: 32 },
-  { hourOffset: -3, label: "-3h", gustMph: 38 },
-  { hourOffset: -2, label: "-2h", gustMph: 45 },
-  { hourOffset: -1, label: "-1h", gustMph: 51 },
-  { hourOffset: 0, label: "Now", gustMph: 58 },
-  { hourOffset: 1, label: "+1h", gustMph: 54, forecast: true },
-  { hourOffset: 2, label: "+2h", gustMph: 47, forecast: true },
-  { hourOffset: 3, label: "+3h", gustMph: 39, forecast: true },
-  { hourOffset: 4, label: "+4h", gustMph: 31, forecast: true },
-  { hourOffset: 5, label: "+5h", gustMph: 25, forecast: true },
-  { hourOffset: 6, label: "+6h", gustMph: 20, forecast: true },
+  { hourOffset: -6, label: "-6h", gustMph: 22, tempC: 19, feelsLikeC: 18, rainMm: 0.2, windDir: "SW", condition: "cloudy" },
+  { hourOffset: -5, label: "-5h", gustMph: 26, tempC: 18, feelsLikeC: 17, rainMm: 0.5, windDir: "SW", condition: "cloudy" },
+  { hourOffset: -4, label: "-4h", gustMph: 32, tempC: 17, feelsLikeC: 15, rainMm: 1.2, windDir: "SW", condition: "rain" },
+  { hourOffset: -3, label: "-3h", gustMph: 38, tempC: 16, feelsLikeC: 14, rainMm: 2.8, windDir: "SW", condition: "rain" },
+  { hourOffset: -2, label: "-2h", gustMph: 45, tempC: 15, feelsLikeC: 12, rainMm: 4.5, windDir: "W", condition: "storm" },
+  { hourOffset: -1, label: "-1h", gustMph: 51, tempC: 14, feelsLikeC: 10, rainMm: 6.2, windDir: "W", condition: "storm" },
+  { hourOffset: 0, label: "Now", gustMph: 58, tempC: 14, feelsLikeC: 9, rainMm: 7.8, windDir: "W", condition: "storm" },
+  { hourOffset: 1, label: "+1h", gustMph: 54, forecast: true, tempC: 14, feelsLikeC: 10, rainMm: 5.5, windDir: "NW", condition: "storm" },
+  { hourOffset: 2, label: "+2h", gustMph: 47, forecast: true, tempC: 15, feelsLikeC: 12, rainMm: 3.1, windDir: "NW", condition: "rain" },
+  { hourOffset: 3, label: "+3h", gustMph: 39, forecast: true, tempC: 16, feelsLikeC: 13, rainMm: 1.4, windDir: "NW", condition: "rain" },
+  { hourOffset: 4, label: "+4h", gustMph: 31, forecast: true, tempC: 17, feelsLikeC: 15, rainMm: 0.4, windDir: "N", condition: "cloudy" },
+  { hourOffset: 5, label: "+5h", gustMph: 25, forecast: true, tempC: 18, feelsLikeC: 16, rainMm: 0.1, windDir: "N", condition: "cloudy" },
+  { hourOffset: 6, label: "+6h", gustMph: 20, forecast: true, tempC: 19, feelsLikeC: 17, rainMm: 0, windDir: "N", condition: "sunny" },
+];
+
+// Sunrise/sunset for the incident day (rural Suffolk, UK, July — long BST days).
+export const sunTimes = { sunrise: "04:47", sunset: "21:22" };
+
+// Points for the temperature heat map — reuses the settlement layout so it reads as the same
+// rural area shown elsewhere. tempOffsetC is a small microclimate variation from the base
+// timeline temperature (e.g. low-lying fen vs. more sheltered village).
+export const weatherHeatmapPoints = [
+  { id: "whp-1", label: "Wickham Cross", x: 190, y: 150, tempOffsetC: 0.3 },
+  { id: "whp-2", label: "Blythe Fen", x: 330, y: 230, tempOffsetC: -0.6 },
+  { id: "whp-3", label: "Ashcombe Parva", x: 470, y: 190, tempOffsetC: 0.5 },
+  { id: "whp-4", label: "Netherstow", x: 590, y: 300, tempOffsetC: 0.8 },
+  { id: "whp-5", label: "Cold Marsh Green", x: 260, y: 380, tempOffsetC: -0.4 },
 ];
 
 // Overhead-line cable runs exposed to wind — each has an exposure multiplier reflecting terrain

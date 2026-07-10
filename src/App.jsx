@@ -8,9 +8,11 @@ import RoutePlanner from "./components/RoutePlanner";
 import ResourcePanel from "./components/ResourcePanel";
 import CommsDeployment from "./components/CommsDeployment";
 import AiAssistant from "./components/AiAssistant";
+import WeatherForecast from "./components/WeatherForecast";
 
 const TABS = [
   { id: "map", label: "Map View" },
+  { id: "weather", label: "Weather" },
   { id: "restart", label: "Auto-Restart Status" },
   { id: "route", label: "Route Planner" },
   { id: "resources", label: "Resources" },
@@ -92,6 +94,7 @@ export default function App() {
         {activeTab === "map" && (
           <MapView onPlanRoute={goToRoutePlanner} welfareTasks={welfareTasks} />
         )}
+        {activeTab === "weather" && <WeatherForecast />}
         {activeTab === "restart" && <RestartPanel onPlanRoute={goToRoutePlanner} />}
         {activeTab === "route" && (
           <RoutePlanner destinationId={routeDestinationId} onSelectDestination={setRouteDestinationId} onDispatch={postTimelineEvent} />
