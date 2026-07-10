@@ -9,7 +9,33 @@ import {
   weatherTimeline,
   cableRiskPoints,
   cableRiskLevel,
+  sunTimes,
+  weatherHeatmapPoints,
 } from "../data/mockData";
+
+const conditionIcon = { sunny: "☀️", cloudy: "⛅", rain: "🌧️", storm: "⛈️" };
+const conditionLabel = { sunny: "Sunny", cloudy: "Cloudy", rain: "Rain", storm: "Storm" };
+
+// Compass bearing wind is blowing FROM (standard met convention).
+const FROM_DEGREES = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
+
+// Rotation for a "↑" glyph so it visually points in the direction the wind is blowing TOWARD.
+function windArrowRotation(dir) {
+  return (FROM_DEGREES[dir] + 180) % 360;
+}
+
+// Cold-to-warm gradient across a fixed 8-24°C range, used only for the temperature heat map —
+// independent of, and does not affect, the existing wind-severity colour scale below.
+function tempColor(tempC) {
+  const clamped = Math.max(8, Math.min(24, tempC));
+  const cold = [37, 99, 235];
+  const mid = [16, 185, 129];
+  const warm = [249, 115, 22];
+  const pos = (clamped - 8) / 16;
+  const [c1, c2, local] = pos < 0.5 ? [cold, mid, pos / 0.5] : [mid, warm, (pos - 0.5) / 0.5];
+  const rgb = c1.map((v, i) => Math.round(v + (c2[i] - v) * local));
+  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+}
 
 const statusStyle = {
   "on-backup": "bg-amber-100 text-amber-800 ring-amber-300",
@@ -34,12 +60,15 @@ export default function MapView({ onPlanRoute, welfareTasks = [] }) {
   const [showVulnerability, setShowVulnerability] = useState(false);
   const [showWeather, setShowWeather] = useState(false);
   const [showWelfarePins, setShowWelfarePins] = useState(true);
+  const [showForecast, setShowForecast] = useState(false);
   const [hourIndex, setHourIndex] = useState(6); // index 6 = hourOffset 0 ("Now")
   const [selected, setSelected] = useState(null); // { type: "mast" | "welfare", id }
 
   const selectedMast = selected?.type === "mast" ? mastSites.find((m) => m.id === selected.id) : null;
   const selectedWelfare = selected?.type === "welfare" ? welfareTasks.find((w) => w.id === selected.id) : null;
   const currentHour = weatherTimeline[hourIndex];
+  const nowWeather = weatherTimeline.find((h) => h.hourOffset === 0);
+  const nowSeverity = cableRiskLevel(nowWeather.gustMph);
 
   const riskReadings = useMemo(
     () =>
@@ -54,9 +83,26 @@ export default function MapView({ onPlanRoute, welfareTasks = [] }) {
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">Outage Overlay Map</h2>
-            <p className="text-xs text-slate-500">Wickham Cross &amp; Blythe Fen area, rural Suffolk, UK</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Outage Overlay Map</h2>
+              <p className="text-xs text-slate-500">Wickham Cross &amp; Blythe Fen area, rural Suffolk, UK</p>
+            </div>
+            <button
+              onClick={() => setShowForecast((v) => !v)}
+              aria-expanded={showForecast}
+              aria-label="Toggle weather forecast"
+              className={`flex items-center gap-1.5 text-sm font-medium rounded-full pl-2 pr-3 py-1 border transition-colors ${
+                showForecast ? "bg-slate-900 text-white border-slate-900" : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              <span className="text-lg leading-none">{conditionIcon[nowWeather.condition]}</span>
+              <span>{nowWeather.tempC}°C</span>
+              <span className="inline-block" style={{ transform: `rotate(${windArrowRotation(nowWeather.windDir)}deg)` }}>
+                ↑
+              </span>
+              <span>{nowWeather.windDir}</span>
+            </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 select-none cursor-pointer bg-slate-50 border border-slate-200 rounded-full pl-3 pr-1 py-1">
@@ -115,6 +161,110 @@ export default function MapView({ onPlanRoute, welfareTasks = [] }) {
             </label>
           </div>
         </div>
+
+        {showForecast && (
+          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 text-left">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-3xl">{conditionIcon[nowWeather.condition]}</span>
+                <div>
+                  <p className="text-xl font-semibold text-slate-900">{nowWeather.tempC}°C</p>
+                  <p className="text-xs text-slate-500">
+                    Feels like {nowWeather.feelsLikeC}°C · {conditionLabel[nowWeather.condition]}
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-slate-600">
+                <p className="text-slate-500">Rain</p>
+                <p className="font-semibold">{nowWeather.rainMm} mm/hr</p>
+              </div>
+              <div className="text-xs text-slate-600">
+                <p className="text-slate-500">Wind</p>
+                <p className="font-semibold flex items-center gap-1">
+                  {nowWeather.gustMph} mph
+                  <span className="inline-block" style={{ transform: `rotate(${windArrowRotation(nowWeather.windDir)}deg)` }}>
+                    ↑
+                  </span>
+                  {nowWeather.windDir} ·{" "}
+                  <span style={{ color: nowSeverity.color }} className="capitalize">
+                    {nowSeverity.level}
+                  </span>
+                </p>
+              </div>
+              <div className="text-xs text-slate-600">
+                <p className="text-slate-500">Sunrise / Sunset</p>
+                <p className="font-semibold">
+                  ☀️ {sunTimes.sunrise} · 🌙 {sunTimes.sunset}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Temperature by area
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {weatherHeatmapPoints.map((p) => {
+                  const temp = Math.round((nowWeather.tempC + p.tempOffsetC) * 10) / 10;
+                  return (
+                    <span
+                      key={p.id}
+                      className="flex items-center gap-1.5 text-xs bg-white border border-slate-200 rounded-full pl-1.5 pr-2.5 py-1"
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: tempColor(temp) }} />
+                      {p.label}: <span className="font-semibold">{temp}°C</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Past &amp; predicted (-6h to +6h)
+              </p>
+              <div className="overflow-x-auto -mx-1">
+                <div className="flex gap-1 px-1 min-w-max">
+                  {weatherTimeline.map((h) => {
+                    const isNow = h.hourOffset === 0;
+                    const hourSeverity = cableRiskLevel(h.gustMph);
+                    return (
+                      <div
+                        key={h.hourOffset}
+                        className={`flex flex-col items-center gap-0.5 rounded-lg px-2.5 py-2 w-[66px] shrink-0 ${
+                          isNow ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-700"
+                        }`}
+                      >
+                        <p className={`text-[10px] font-semibold ${isNow ? "text-white" : "text-slate-500"}`}>{h.label}</p>
+                        <span className="text-lg leading-none">{conditionIcon[h.condition]}</span>
+                        <p className="text-xs font-semibold">{h.tempC}°C</p>
+                        <p className={`text-[10px] ${isNow ? "text-slate-300" : "text-slate-500"}`}>{h.rainMm}mm</p>
+                        <p className={`text-[10px] flex items-center gap-0.5 ${isNow ? "text-slate-300" : "text-slate-500"}`}>
+                          <span className="inline-block" style={{ transform: `rotate(${windArrowRotation(h.windDir)}deg)` }}>
+                            ↑
+                          </span>
+                          {h.gustMph}
+                        </p>
+                        <span
+                          className="text-[9px] font-medium capitalize rounded-full px-1 mt-0.5"
+                          style={{
+                            color: isNow ? "#0f172a" : hourSeverity.color,
+                            background: isNow ? "white" : `${hourSeverity.color}1a`,
+                          }}
+                        >
+                          {hourSeverity.level}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2">
+              Wind severity uses the same scale as the Weather layer below (unchanged).
+            </p>
+          </div>
+        )}
 
         {showWeather && (
           <div className="px-4 py-3 border-b border-slate-200 bg-sky-50/60">

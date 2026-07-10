@@ -7,16 +7,13 @@ import WelfareBoard from "./components/WelfareBoard";
 import RoutePlanner from "./components/RoutePlanner";
 import ResourcePanel from "./components/ResourcePanel";
 import CommsDeployment from "./components/CommsDeployment";
-import AiAssistant from "./components/AiAssistant";
-import WeatherForecast from "./components/WeatherForecast";
+import AiAssistantWidget from "./components/AiAssistantWidget";
 
 const TABS = [
   { id: "map", label: "Map View" },
-  { id: "weather", label: "Weather" },
-  { id: "restart", label: "Auto-Restart Status" },
   { id: "route", label: "Route Planner" },
+  { id: "restart", label: "Auto-Restart Status" },
   { id: "resources", label: "Resources" },
-  { id: "assistant", label: "AI Assistant" },
   { id: "timeline", label: "Shared Timeline" },
   { id: "welfare", label: "Welfare Task Board" },
 ];
@@ -94,7 +91,6 @@ export default function App() {
         {activeTab === "map" && (
           <MapView onPlanRoute={goToRoutePlanner} welfareTasks={welfareTasks} />
         )}
-        {activeTab === "weather" && <WeatherForecast />}
         {activeTab === "restart" && <RestartPanel onPlanRoute={goToRoutePlanner} />}
         {activeTab === "route" && (
           <RoutePlanner destinationId={routeDestinationId} onSelectDestination={setRouteDestinationId} onDispatch={postTimelineEvent} />
@@ -105,7 +101,6 @@ export default function App() {
             <CommsDeployment />
           </div>
         )}
-        {activeTab === "assistant" && <AiAssistant welfareTasks={welfareTasks} />}
         {activeTab === "timeline" && <Timeline events={timelineEvents} onPost={postTimelineEvent} />}
         {activeTab === "welfare" && (
           <WelfareBoard
@@ -130,6 +125,8 @@ export default function App() {
           </span>
         </div>
       </footer>
+
+      <AiAssistantWidget welfareTasks={welfareTasks} />
     </div>
   );
 }
