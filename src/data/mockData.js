@@ -345,6 +345,16 @@ export const initialTimeline = [
   },
 ];
 
+// Problem-type categories for welfare cases — shown as an icon/tag on the kanban board and the
+// map so coordinators can scan case type at a glance, separate from the red/amber/green status.
+export const welfareCategories = {
+  health: { label: "Health", icon: "🏥", color: "#dc2626" },
+  mobility: { label: "Mobility", icon: "🦽", color: "#7c3aed" },
+  utilities: { label: "Heating/Power", icon: "🔥", color: "#ea580c" },
+  family: { label: "Family/Children", icon: "🧒", color: "#d97706" },
+  food: { label: "Food/Supplies", icon: "🥫", color: "#16a34a" },
+};
+
 // Welfare task board — informal welfare checks, assignable to either company's field staff.
 // x/y place each case as a pin on the map; history is a short reference log of what happened,
 // where, and why, kept attached to the case for coordinators (not personal/clinical data).
@@ -357,6 +367,7 @@ export const initialWelfareTasks = [
     assignedTo: "J. Okafor — Energy DNO Field Team 3",
     priority: "high",
     status: "reported",
+    category: "health",
     x: 315,
     y: 248,
     history: [
@@ -372,6 +383,7 @@ export const initialWelfareTasks = [
     assignedTo: "Unassigned",
     priority: "high",
     status: "reported",
+    category: "utilities",
     x: 352,
     y: 213,
     history: [
@@ -386,6 +398,7 @@ export const initialWelfareTasks = [
     assignedTo: "M. Iqbal — Telecom MNO Field Ops",
     priority: "high",
     status: "in-progress",
+    category: "health",
     x: 208,
     y: 168,
     history: [
@@ -401,6 +414,7 @@ export const initialWelfareTasks = [
     assignedTo: "J. Okafor — Energy DNO Field Team 3",
     priority: "medium",
     status: "resolved",
+    category: "family",
     x: 470,
     y: 206,
     history: [
@@ -415,6 +429,7 @@ export const initialWelfareTasks = [
     detail: "Outside dual-outage zone but requested reassurance call given proximity.",
     assignedTo: "M. Iqbal — Telecom MNO Field Ops",
     priority: "low",
+    category: "mobility",
     x: 260,
     y: 396,
     history: [
@@ -422,6 +437,21 @@ export const initialWelfareTasks = [
       { time: "08:10", note: "Call completed — couple confirmed unaffected, no further action needed." },
     ],
     status: "resolved",
+  },
+  {
+    id: "w6",
+    title: "Food/welfare supply check — isolated household",
+    location: "Netherstow",
+    detail: "Elderly resident relies on a weekly food delivery; this week's delivery missed due to road access. Confirm welfare and arrange alternative supply.",
+    assignedTo: "Unassigned",
+    priority: "medium",
+    status: "reported",
+    category: "food",
+    x: 570,
+    y: 318,
+    history: [
+      { time: "08:15", note: "Flagged by community volunteer — usual food delivery missed due to local road closure." },
+    ],
   },
 ];
 

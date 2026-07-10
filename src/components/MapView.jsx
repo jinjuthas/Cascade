@@ -11,6 +11,7 @@ import {
   cableRiskLevel,
   sunTimes,
   weatherHeatmapPoints,
+  welfareCategories,
 } from "../data/mockData";
 
 const conditionIcon = { sunny: "☀️", cloudy: "⛅", rain: "🌧️", storm: "⛈️" };
@@ -375,6 +376,7 @@ export default function MapView({ onPlanRoute, welfareTasks = [] }) {
             {showWelfarePins &&
               welfareTasks.map((w) => {
                 const isSelected = selected?.type === "welfare" && selected.id === w.id;
+                const category = welfareCategories[w.category];
                 return (
                   <g
                     key={w.id}
@@ -384,6 +386,14 @@ export default function MapView({ onPlanRoute, welfareTasks = [] }) {
                   >
                     {isSelected && <circle r="16" fill="none" stroke="#0f172a" strokeWidth="1.5" strokeDasharray="3 3" />}
                     <circle r="7" fill={welfarePinColor[w.status]} stroke="white" strokeWidth="2" />
+                    {category && (
+                      <>
+                        <circle cx="10" cy="-8" r="8" fill="white" stroke="#e2e8f0" strokeWidth="1" />
+                        <text x="10" y="-4" textAnchor="middle" fontSize="10">
+                          {category.icon}
+                        </text>
+                      </>
+                    )}
                   </g>
                 );
               })}
@@ -495,9 +505,24 @@ export default function MapView({ onPlanRoute, welfareTasks = [] }) {
                 />
               </div>
               <p className="text-xs text-slate-500">{selectedWelfare.location}</p>
-              <span className="inline-flex ring-1 ring-slate-200 bg-slate-50 rounded-full px-2 py-0.5 text-xs font-medium text-slate-700">
-                {welfareStatusLabel[selectedWelfare.status]}
-              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex ring-1 ring-slate-200 bg-slate-50 rounded-full px-2 py-0.5 text-xs font-medium text-slate-700">
+                  {welfareStatusLabel[selectedWelfare.status]}
+                </span>
+                {welfareCategories[selectedWelfare.category] && (
+                  <span
+                    className="inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 border"
+                    style={{
+                      color: welfareCategories[selectedWelfare.category].color,
+                      background: `${welfareCategories[selectedWelfare.category].color}14`,
+                      borderColor: `${welfareCategories[selectedWelfare.category].color}40`,
+                    }}
+                  >
+                    <span>{welfareCategories[selectedWelfare.category].icon}</span>
+                    {welfareCategories[selectedWelfare.category].label}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-600 leading-relaxed">{selectedWelfare.detail}</p>
               <div className="pt-1">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Reference notes</p>

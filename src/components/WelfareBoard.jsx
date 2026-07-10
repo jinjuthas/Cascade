@@ -1,4 +1,4 @@
-import { resolveDestinationId } from "../data/mockData";
+import { resolveDestinationId, welfareCategories } from "../data/mockData";
 
 const COLUMNS = [
   { id: "reported", label: "Reported" },
@@ -36,6 +36,7 @@ function TaskCard({ task, onMove, onAssign, onPlanRoute }) {
   const idx = COLUMNS.findIndex((c) => c.id === task.status);
   const org = orgOf(task.assignedTo);
   const destinationId = resolveDestinationId(task.location);
+  const category = welfareCategories[task.category];
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-3 space-y-2 text-left">
@@ -45,6 +46,15 @@ function TaskCard({ task, onMove, onAssign, onPlanRoute }) {
           {task.priority}
         </span>
       </div>
+      {category && (
+        <span
+          className="inline-flex items-center gap-1 text-[11px] font-medium rounded-full px-2 py-0.5 border"
+          style={{ color: category.color, background: `${category.color}14`, borderColor: `${category.color}40` }}
+        >
+          <span>{category.icon}</span>
+          {category.label}
+        </span>
+      )}
       <p className="text-xs text-slate-500">{task.location}</p>
       <p className="text-xs text-slate-600 leading-relaxed">{task.detail}</p>
 
