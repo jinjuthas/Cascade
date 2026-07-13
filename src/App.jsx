@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { incident, initialTimeline, initialWelfareTasks } from "./data/mockData";
+import { incident, initialTimeline, initialWelfareTasks, initialFieldEngineers, formatRelativeMinutes } from "./data/mockData";
 import MapView from "./components/MapView";
 import RestartPanel from "./components/RestartPanel";
 import Timeline from "./components/Timeline";
@@ -8,12 +8,14 @@ import RoutePlanner from "./components/RoutePlanner";
 import ResourcePanel from "./components/ResourcePanel";
 import CommsDeployment from "./components/CommsDeployment";
 import AiAssistantWidget from "./components/AiAssistantWidget";
+import EngineerSafety from "./components/EngineerSafety";
 
 const TABS = [
   { id: "map", label: "Map View" },
   { id: "route", label: "Route Planner" },
   { id: "restart", label: "Auto-Restart Status" },
   { id: "resources", label: "Resources" },
+  { id: "safety", label: "Engineer Safety" },
   { id: "timeline", label: "Shared Timeline" },
   { id: "welfare", label: "Welfare Task Board" },
 ];
@@ -23,6 +25,7 @@ export default function App() {
   const [routeDestinationId, setRouteDestinationId] = useState("BLF-002");
   const [timelineEvents, setTimelineEvents] = useState(initialTimeline);
   const [welfareTasks, setWelfareTasks] = useState(initialWelfareTasks);
+  const [fieldEngineers, setFieldEngineers] = useState(initialFieldEngineers);
 
   function goToRoutePlanner(destinationId) {
     setRouteDestinationId(destinationId);
@@ -42,8 +45,61 @@ export default function App() {
     setWelfareTasks((prev) => prev.map((t) => (t.id === id ? { ...t, assignedTo } : t)));
   }
 
+  function checkInEngineer(id) {
+    setFieldEngineers((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, lastCheckIn: new Date().toISOString() } : e))
+    );
+  }
+
+  function triggerSOS(id) {
+    const now = new Date();
+    const eng = fieldEngineers.find((e) => e.id === id);
+    if (!eng) return;
+    setFieldEngineers((prev) =>
+      prev.map((e) =>
+        e.id === id
+          ? { ...e, sosActive: true, sosTime: now.toISOString(), sosNote: e.sosNote || "Manually flagged by control room — awaiting further contact." }
+          : e
+      )
+    );
+    postTimelineEvent({
+      id: `t-${Date.now()}`,
+      time: now.toISOString(),
+      org: eng.org,
+      author: "Cascade Safety Monitor",
+      text: `🚨 SOS flagged for ${eng.name} (${eng.role}) — ${eng.assignment}. Immediate follow-up required.`,
+    });
+  }
+
+  function resolveSOS(id) {
+    const now = new Date();
+    const eng = fieldEngineers.find((e) => e.id === id);
+    if (!eng) return;
+    setFieldEngineers((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, sosActive: false, sosNote: null, lastCheckIn: now.toISOString() } : e))
+    );
+    postTimelineEvent({
+      id: `t-${Date.now()}`,
+      time: now.toISOString(),
+      org: "joint",
+      author: "Cascade Safety Monitor",
+      text: `SOS resolved for ${eng.name} — confirmed safe, check-in timer reset.`,
+    });
+  }
+
+  const activeSOS = fieldEngineers.filter((e) => e.sosActive);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      {activeSOS.length > 0 && (
+        <button
+          onClick={() => setActiveTab("safety")}
+          className="w-full bg-rose-600 text-white text-sm font-medium px-4 py-2 flex items-center justify-center gap-2 animate-pulse hover:bg-rose-700 transition-colors"
+        >
+          🚨 SOS ACTIVE — {activeSOS[0].name} ({activeSOS[0].role}) · {formatRelativeMinutes(activeSOS[0].sosTime)}
+          {activeSOS.length > 1 ? ` · +${activeSOS.length - 1} more` : ""} — View
+        </button>
+      )}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-3 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-3">
@@ -89,7 +145,7 @@ export default function App() {
 
       <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 sm:px-6 py-5">
         {activeTab === "map" && (
-          <MapView onPlanRoute={goToRoutePlanner} welfareTasks={welfareTasks} />
+          <MapView onPlanRoute={goToRoutePlanner} welfareTasks={welfareTasks} fieldEngineers={fieldEngineers} />
         )}
         {activeTab === "restart" && <RestartPanel onPlanRoute={goToRoutePlanner} />}
         {activeTab === "route" && (
@@ -100,6 +156,14 @@ export default function App() {
             <ResourcePanel onPlanRoute={goToRoutePlanner} />
             <CommsDeployment />
           </div>
+        )}
+        {activeTab === "safety" && (
+          <EngineerSafety
+            engineers={fieldEngineers}
+            onCheckIn={checkInEngineer}
+            onTriggerSOS={triggerSOS}
+            onResolveSOS={resolveSOS}
+          />
         )}
         {activeTab === "timeline" && <Timeline events={timelineEvents} onPost={postTimelineEvent} />}
         {activeTab === "welfare" && (

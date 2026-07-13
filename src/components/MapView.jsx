@@ -57,7 +57,7 @@ const welfareStatusLabel = {
   resolved: "Resolved",
 };
 
-export default function MapView({ onPlanRoute, welfareTasks = [] }) {
+export default function MapView({ onPlanRoute, welfareTasks = [], fieldEngineers = [] }) {
   const [showVulnerability, setShowVulnerability] = useState(false);
   const [showWeather, setShowWeather] = useState(false);
   const [showWelfarePins, setShowWelfarePins] = useState(true);
@@ -424,6 +424,22 @@ export default function MapView({ onPlanRoute, welfareTasks = [] }) {
                 </g>
               );
             })}
+
+            {fieldEngineers
+              .filter((e) => e.sosActive)
+              .map((e) => (
+                <g key={e.id} transform={`translate(${e.x}, ${e.y})`}>
+                  <circle r="12" fill="none" stroke="#dc2626" strokeWidth="2">
+                    <animate attributeName="r" values="12;22;12" dur="1.6s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.8;0;0.8" dur="1.6s" repeatCount="indefinite" />
+                  </circle>
+                  <circle r="11" fill="#dc2626" stroke="white" strokeWidth="2" />
+                  <text y="4" textAnchor="middle" fontSize="12">🆘</text>
+                  <text y="26" textAnchor="middle" fontSize="11" fontWeight="700" fill="#dc2626">
+                    {e.name} SOS
+                  </text>
+                </g>
+              ))}
           </svg>
 
           <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur rounded-lg border border-slate-200 shadow-sm px-3 py-2 text-xs space-y-1.5">

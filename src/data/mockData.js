@@ -461,6 +461,87 @@ export const orgMeta = {
   joint: { label: "Joint / System", color: "slate" },
 };
 
+// Lone-worker safety: field engineers check in on a set cadence (1-2 hrs); a missed check-in
+// or an SOS trigger must be immediately visible to the control room. lastCheckIn is computed
+// relative to real wall-clock time at load, so overdue/due-soon states are always realistic
+// however long the demo has been running — not tied to the fictional incident timestamps above.
+function minutesAgo(mins) {
+  return new Date(Date.now() - mins * 60000).toISOString();
+}
+
+export const initialFieldEngineers = [
+  {
+    id: "eng-1",
+    name: "J. Okafor",
+    org: "energy",
+    role: "Energy DNO Field Team 3",
+    assignment: "Generator refuel — Blythe Fen Church Rd (BLF-002)",
+    x: 340,
+    y: 262,
+    checkInIntervalMinutes: 60,
+    lastCheckIn: minutesAgo(15),
+    sosActive: false,
+  },
+  {
+    id: "eng-2",
+    name: "M. Iqbal",
+    org: "telecom",
+    role: "Telecom MNO Field Ops",
+    assignment: "Welfare check — dialysis patient, Wickham Cross",
+    x: 208,
+    y: 168,
+    checkInIntervalMinutes: 60,
+    lastCheckIn: minutesAgo(55),
+    sosActive: false,
+  },
+  {
+    id: "eng-3",
+    name: "A. Novak",
+    org: "energy",
+    role: "Energy DNO Field Team 3",
+    assignment: "Route clearance survey — Ashcombe Lane",
+    x: 450,
+    y: 230,
+    checkInIntervalMinutes: 120,
+    lastCheckIn: minutesAgo(135),
+    sosActive: false,
+  },
+  {
+    id: "eng-4",
+    name: "D. Fenwick",
+    org: "telecom",
+    role: "Telecom MNO Field Ops",
+    assignment: "Portable comms deployment — Blythe Fen",
+    x: 300,
+    y: 240,
+    checkInIntervalMinutes: 60,
+    lastCheckIn: minutesAgo(70),
+    sosActive: true,
+    sosNote: "Reported difficulty accessing site — possible fall risk near the flooded ford. Awaiting further contact.",
+    sosTime: minutesAgo(4),
+  },
+];
+
+// Derives a live status from check-in cadence — sosActive always wins regardless of timing.
+export function engineerStatus(engineer) {
+  if (engineer.sosActive) return { level: "sos", label: "SOS active", color: "#dc2626" };
+  const minutesSince = (Date.now() - new Date(engineer.lastCheckIn).getTime()) / 60000;
+  const pct = minutesSince / engineer.checkInIntervalMinutes;
+  if (pct >= 1) return { level: "overdue", label: "Overdue check-in", color: "#dc2626" };
+  if (pct >= 0.8) return { level: "due-soon", label: "Check-in due soon", color: "#d97706" };
+  return { level: "ok", label: "OK", color: "#16a34a" };
+}
+
+// Formats "N min ago" / "Nh Nm ago" for a past ISO timestamp, relative to now.
+export function formatRelativeMinutes(isoTime) {
+  const mins = Math.round((Date.now() - new Date(isoTime).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem === 0 ? `${hrs}h ago` : `${hrs}h ${rem}m ago`;
+}
+
 // Joint response vehicle depot — starting point for all field dispatch routes.
 export const depot = {
   id: "depot",
